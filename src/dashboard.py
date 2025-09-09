@@ -257,28 +257,36 @@ app.layout = html.Div(className='container', children=[
         interval=24 * 60 * 60 * 1000,
         n_intervals=0
     ),
-    html.Div(className='header', children=[
-        html.Img(src=app.get_asset_url('logo.png'), className='logo'),
-        html.H1(children='Análise de Tráfego de Ligações', style={'color': '#333', 'flex-grow': '1', 'text-align': 'center'}),
-        html.H2(children=f'Mês de referência {mes_de_referencia_str}', style={'color': '#666', 'font-size': '1.2em', 'flex-grow': '1', 'text-align': 'center', 'margin-top': '-10px'})
+    # Novo contêiner para o cabeçalho
+    html.Div(className='header-section', children=[
+        html.Div(className='header', children=[
+            html.Img(src=app.get_asset_url('logo.png'), className='logo'),
+            html.Div(style={'display': 'flex', 'flex-direction': 'column', 'align-items': 'center', 'flex-grow': '1', 'text-align': 'center'}, children=[
+                html.H1(children='Análise de Tráfego de Ligações', style={'color': '#333', 'margin-bottom': '0'}),
+                html.H2(children=f'Mês de referência {mes_de_referencia_str}', style={'color': '#666', 'font-size': '1.2em', 'margin-top': '5px'})
+            ])
+        ])
     ]),
     
-    html.Div(className='metric-container', children=[
-        html.Div(className='metric-box', children=[
-            html.H3('Total de Ligações'),
-            html.H2(id='total-ligacoes', children=f'{len(df)}')
-        ]),
-        html.Div(className='metric-box', children=[
-            html.H3('Chamadas Ativas'),
-            html.H2(id='chamadas-ativas', children=f'{len(df[df["Duração (segundos)"] > 0])}')
-        ]),
-        html.Div(className='metric-box', children=[
-            html.H3('Tempo Total de Chamadas'),
-            html.H2(id='tempo-total-chamadas', children=f'{df["Duração (segundos)"].sum() / 3600:.2f} horas')
-        ]),
-        html.Div(className='metric-box', children=[
-            html.H3('Custo Total Estimado'),
-            html.H2(id='custo-total-estimado', children=f'R$ {df["Preço"].sum():.2f}')
+    # Novo contêiner para a seção de métricas
+    html.Div(className='metrics-section', children=[
+        html.Div(className='metric-container', children=[
+            html.Div(className='metric-box', children=[
+                html.H3('Total de Ligações'),
+                html.H2(id='total-ligacoes', children=f'{len(df)}')
+            ]),
+            html.Div(className='metric-box', children=[
+                html.H3('Chamadas Ativas'),
+                html.H2(id='chamadas-ativas', children=f'{len(df[df["Duração (segundos)"] > 0])}')
+            ]),
+            html.Div(className='metric-box', children=[
+                html.H3('Tempo Total de Chamadas'),
+                html.H2(id='tempo-total-chamadas', children=f'{df["Duração (segundos)"].sum() / 3600:.2f} horas')
+            ]),
+            html.Div(className='metric-box', children=[
+                html.H3('Custo Total Estimado'),
+                html.H2(id='custo-total-estimado', children=f'R$ {df["Preço"].sum():.2f}')
+            ])
         ])
     ]),
     

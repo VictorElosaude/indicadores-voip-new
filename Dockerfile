@@ -1,7 +1,10 @@
-# Usa uma imagem base Python slim para um tamanho menor
+# Usa uma imagem base Python slim
 FROM python:3.9-slim
 
-# Instala as dependências do sistema necessárias para o Chrome e o ChromeDriver
+# Evita prompts interativos durante instalação
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instala dependências do sistema necessárias para o Chrome e o ChromeDriver
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -11,28 +14,37 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libatk1.0-0 \
     libgtk-3-0 \
-    --no-install-recommends
+    libgbm-dev \
+    curl \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
-# Instala o Chrome Stable
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' \
-    && apt-get update && apt-get install -y google-chrome-stable
+# Instala o Google Chrome
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
+       > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instala o ChromeDriver compatível com o Chrome instalado
+RUN CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d '.' -f 1) \
+    && DRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}") \
+    && wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip" \
+    && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
+    && rm /tmp/chromedriver.zip
 
 # Define o diretório de trabalho no container
 WORKDIR /app
 
-# Copia o arquivo de requisitos e instala as dependências do Python
+# Copia requirements e instala dependências Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia todo o seu projeto para o container
+# Copia o código do projeto
 COPY . .
 
-# Define a variável de ambiente para que o Selenium saiba onde encontrar o ChromeDriver
-ENV PATH="/usr/bin/google-chrome:${PATH}"
-
-# Define a porta que seu aplicativo irá expor
+# Expondo a porta
 EXPOSE 8050
 
-# Define o comando que será executado quando o container iniciar
+# Comando de inicialização
 CMD ["python", "src/dashboard.py"]
