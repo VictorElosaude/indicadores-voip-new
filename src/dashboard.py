@@ -205,16 +205,25 @@ def executar_pipeline_completa():
 
 # --- FUNÇÃO DE CARREGAMENTO INICIAL DOS DADOS ---
 def carregar_dados_iniciais():
-    """Tenta carregar os dados de um arquivo local, ou executa a pipeline completa se não encontrar."""
+    """Tenta carregar os dados de um arquivo local. Se o arquivo não existir ou for inválido, executa a pipeline completa."""
     caminho_arquivo_local = "dados/dados_tratados_final.csv"
     if os.path.exists(caminho_arquivo_local):
         print("Lendo dados do arquivo local...")
-        df_bruto = pd.read_csv(caminho_arquivo_local)
-        df = preparar_dados_para_dashboard(df_bruto)
-        return df
-    else:
-        print("Arquivo de dados local não encontrado. Executando a pipeline pela primeira vez...")
-        return executar_pipeline_completa()
+        try:
+            df_bruto = pd.read_csv(caminho_arquivo_local)
+            df = preparar_dados_para_dashboard(df_bruto)
+            # Verifica se o DataFrame lido e tratado é válido
+            if 'destino' in df.columns:
+                print("Arquivo local válido. Usando dados existentes.")
+                return df
+            else:
+                print("Arquivo local inválido (coluna 'destino' não encontrada). Forçando nova extração.")
+        except Exception as e:
+            print(f"Erro ao ler o arquivo local: {e}. Forçando nova extração.")
+    
+    print("Arquivo de dados local não encontrado ou inválido. Executando a pipeline de extração...")
+    return executar_pipeline_completa()
+
 
 # --- CARREGA OS DADOS E INICIA O APP ---
 df = carregar_dados_iniciais()
@@ -243,7 +252,6 @@ if 'Duração' in df.columns:
     df.rename(columns={'Duração': 'duração'}, inplace=True)
 if 'Preço' in df.columns:
     df.rename(columns={'Preço': 'preço'}, inplace=True)
-
 
 # --- CALCULA O MÊS DE REFERÊNCIA PARA O DASHBOARD ---
 hoje = datetime.date.today()
