@@ -39,8 +39,20 @@ def preparar_dados_para_dashboard(df_raw):
     """
     df_temp = df_raw.copy()
     
-    # Normalização dos nomes das colunas
+    # Normalização dos nomes das colunas para minúsculas
     df_temp.columns = df_temp.columns.str.strip().str.lower()
+    
+    # Renomeação específica de colunas em inglês para português
+    mapeamento_nomes = {
+        'date': 'data',
+        'service / origin': 'serviço/origem',
+        'region': 'região',
+        'tech prefix': 'prefixo_tecnico',
+        'destination': 'destino',
+        'duration': 'duração',
+        'price': 'preço'
+    }
+    df_temp = df_temp.rename(columns=mapeamento_nomes)
     
     # Tratamento de dados (sua lógica)
     if 'data' in df_temp.columns:
@@ -205,7 +217,7 @@ def executar_pipeline_completa():
 
 # --- FUNÇÃO DE CARREGAMENTO INICIAL DOS DADOS ---
 def carregar_dados_iniciais():
-    """Tenta carregar os dados de um arquivo local. Se o arquivo não existir ou for inválido, executa a pipeline completa."""
+    """Tenta carregar os dados de um arquivo local, ou executa a pipeline completa se não encontrar."""
     caminho_arquivo_local = "dados/dados_tratados_final.csv"
     if os.path.exists(caminho_arquivo_local):
         print("Lendo dados do arquivo local...")
@@ -224,7 +236,6 @@ def carregar_dados_iniciais():
     print("Arquivo de dados local não encontrado ou inválido. Executando a pipeline de extração...")
     return executar_pipeline_completa()
 
-
 # --- CARREGA OS DADOS E INICIA O APP ---
 df = carregar_dados_iniciais()
 
@@ -239,19 +250,6 @@ if df.empty:
     if __name__ == '__main__':
         app.run(host='0.0.0.0', port=8050, debug=False)
     exit()
-
-# --- CORREÇÃO FINAL E ASSERTIVA ---
-# Verifica se a coluna 'Destino' existe e a renomeia para 'destino' para garantir que ela exista
-# Isso é uma segurança extra para o caso do arquivo CSV salvo localmente ter 'Destino' com maiúscula
-if 'Destino' in df.columns:
-    df.rename(columns={'Destino': 'destino'}, inplace=True)
-# Faz o mesmo para as outras colunas usadas
-if 'Região' in df.columns:
-    df.rename(columns={'Região': 'região'}, inplace=True)
-if 'Duração' in df.columns:
-    df.rename(columns={'Duração': 'duração'}, inplace=True)
-if 'Preço' in df.columns:
-    df.rename(columns={'Preço': 'preço'}, inplace=True)
 
 # --- CALCULA O MÊS DE REFERÊNCIA PARA O DASHBOARD ---
 hoje = datetime.date.today()
@@ -278,7 +276,7 @@ ligacoes_longas_df = df.dropna(subset=['faixa de tempo']).groupby('faixa de temp
     Custo_Acumulado=('preço', 'sum')
 ).reset_index()
 faixas_ordenadas = ['5-6 min', '6-7 min', '7-8 min', '8-9 min', '9-10 min', '10+ min']
-ligacoes_longas_df['faixa de tempo'] = pd.Categorical(ligacoes_longas['faixa de tempo'], categories=faixas_ordenadas, ordered=True)
+ligacoes_longas_df['faixa de tempo'] = pd.Categorical(ligacoes_longas_df['faixa de tempo'], categories=faixas_ordenadas, ordered=True)
 ligacoes_longas_df = ligacoes_longas_df.sort_values('faixa de tempo')
 fig_longas = px.bar(ligacoes_longas_df, x='faixa de tempo', y='Contagem', 
                      title='Ligações com Mais de 5 Minutos', 
@@ -411,7 +409,7 @@ def update_table(click_top_numeros, click_longas, click_tipo):
 
     id_disparador = ctx.triggered[0]['prop_id'].split('.')[0]
     dados_filtrados = pd.DataFrame()
-    colunas_para_tabela = ['Data', 'Serviço/Origem', 'Região', 'Destino', 'Duração', 'Preço']
+    colunas_para_tabela = ['data', 'serviço/origem', 'região', 'destino', 'duração', 'preço']
 
     if id_disparador == 'grafico-top-numeros':
         numero_selecionado = click_top_numeros['points'][0]['x']
@@ -442,10 +440,20 @@ def update_table(click_top_numeros, click_longas, click_tipo):
 
 
     dados_para_exibir = dados_filtrados[colunas_para_tabela].to_dict('records')
+    # Renomeia as colunas da tabela para exibição
+    colunas_para_exibir = [
+        {"name": "Data", "id": "data"},
+        {"name": "Serviço/Origem", "id": "serviço/origem"},
+        {"name": "Região", "id": "região"},
+        {"name": "Destino", "id": "destino"},
+        {"name": "Repetições", "id": "Repetições"},
+        {"name": "Duração", "id": "duração"},
+        {"name": "Preço", "id": "preço"}
+    ]
 
     return dash_table.DataTable(
         id='tabela-filtrada',
-        columns=[{"name": i, "id": i} for i in colunas_para_tabela],
+        columns=colunas_para_exibir,
         data=dados_para_exibir,
         page_action="native",
         page_size=10,
