@@ -24,12 +24,11 @@ PASSWORD = os.environ.get("SERVICE_PASSWORD")
 
 # Define as opções para o Chrome no ambiente Docker
 chrome_options = Options()
-chrome_options.add_argument("--headless") # <-- DESCOMENTADO PARA O AMBIENTE DE SERVIDOR
+chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 chrome_options.add_argument("--disable-gpu")
 chrome_options.add_argument("--window-size=1920,1080")
-# Adicionando opções para contornar problemas de permissão em ambientes Docker
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument("--disable-setuid-sandbox")
 
@@ -40,7 +39,7 @@ def preparar_dados_para_dashboard(df_raw):
     """
     df_temp = df_raw.copy()
     
-    # --- CORREÇÃO: NORMALIZAÇÃO DOS NOMES DAS COLUNAS ---
+    # Normalização dos nomes das colunas
     df_temp.columns = df_temp.columns.str.strip().str.lower()
     
     # Tratamento de dados (sua lógica)
@@ -71,7 +70,7 @@ def preparar_dados_para_dashboard(df_raw):
         df_temp['destino'] = df_temp['destino'].astype(str)
         df_temp['ddd'] = df_temp['destino'].str.extract(r'^55(\d{2})')
     
-    # CRIAÇÃO DA COLUNA 'Faixa de Tempo' AQUI
+    # CRIAÇÃO DA COLUNA 'faixa de tempo'
     df_temp['faixa de tempo'] = pd.NA
     ligacoes_longas = df_temp[df_temp['duração (segundos)'] > 300].copy()
     if not ligacoes_longas.empty:
@@ -108,7 +107,7 @@ def executar_pipeline_completa():
     
     driver = None
     try:
-        driver = webdriver.Chrome(options=chrome_options) # A Coolify já deve ter o chrome instalado
+        driver = webdriver.Chrome(options=chrome_options)
         print(f"[{datetime.datetime.now()}] Navegador iniciado. Acessando URL de login...")
         driver.get(URL_LOGIN)
         
@@ -224,6 +223,9 @@ if df.empty:
     print("Erro grave: Não foi possível carregar os dados. O dashboard não será iniciado.")
     exit()
 
+# --- CORREÇÃO: Normaliza os nomes das colunas novamente para garantir a consistência ---
+df.columns = df.columns.str.strip().str.lower()
+
 # --- CALCULA O MÊS DE REFERÊNCIA PARA O DASHBOARD ---
 hoje = datetime.date.today()
 primeiro_dia_mes_atual = hoje.replace(day=1)
@@ -232,8 +234,7 @@ mes_de_referencia_str = ultimo_dia_mes_anterior.strftime("%m de %Y")
 
 app = dash.Dash(__name__, assets_folder='assets')
 
-# --- CORREÇÃO: Usar a coluna 'destino' em minúsculas ---
-# Esta é a linha 232 no seu código original
+# Usa as colunas com os nomes normalizados
 top_numeros_df = df['destino'].value_counts().head(10).reset_index(name='Contagem')
 contagem_regiao = df['região'].value_counts()
 top_5_regioes_lista = contagem_regiao.head(5).index.tolist()
