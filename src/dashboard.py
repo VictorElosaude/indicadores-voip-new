@@ -24,12 +24,14 @@ PASSWORD = os.environ.get("SERVICE_PASSWORD")
 
 # Define as opções para o Chrome no ambiente Docker
 chrome_options = Options()
-# AVISO: Comentado para visualização local. Descomente para produção no Coolify.
-# chrome_options.add_argument("--headless")
+chrome_options.add_argument("--headless")  # <-- DESCOMENTADO PARA O AMBIENTE DE SERVIDOR
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 chrome_options.add_argument("--disable-gpu")
 chrome_options.add_argument("--window-size=1920,1080")
+# Adicionando opções para contornar problemas de permissão em ambientes Docker
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--disable-setuid-sandbox")
 
 def preparar_dados_para_dashboard(df_raw):
     """
@@ -103,7 +105,7 @@ def executar_pipeline_completa():
     
     driver = None
     try:
-        driver = webdriver.Chrome(options=chrome_options)
+        driver = webdriver.Chrome(options=chrome_options) # A Coolify já deve ter o chrome instalado
         print(f"[{datetime.datetime.now()}] Navegador iniciado. Acessando URL de login...")
         driver.get(URL_LOGIN)
         
@@ -271,19 +273,23 @@ app.layout = html.Div(className='container', children=[
     # Novo contêiner para a seção de métricas
     html.Div(className='metrics-section', children=[
         html.Div(className='metric-container', children=[
-            html.Div(className='metric-box', children=[
+            # Métrica: Total de Ligações
+            html.Div(className='metric-box', title="Mostra o número total de ligações registradas no mês de referência.", children=[
                 html.H3('Total de Ligações'),
                 html.H2(id='total-ligacoes', children=f'{len(df)}')
             ]),
-            html.Div(className='metric-box', children=[
+            # Métrica: Chamadas Ativas
+            html.Div(className='metric-box', title="Mostra o número de ligações com duração maior que zero segundos.", children=[
                 html.H3('Chamadas Ativas'),
                 html.H2(id='chamadas-ativas', children=f'{len(df[df["Duração (segundos)"] > 0])}')
             ]),
-            html.Div(className='metric-box', children=[
+            # Métrica: Tempo Total de Chamadas
+            html.Div(className='metric-box', title="Mostra a soma total da duração de todas as ligações, convertida para horas.", children=[
                 html.H3('Tempo Total de Chamadas'),
                 html.H2(id='tempo-total-chamadas', children=f'{df["Duração (segundos)"].sum() / 3600:.2f} horas')
             ]),
-            html.Div(className='metric-box', children=[
+            # Métrica: Custo Total Estimado
+            html.Div(className='metric-box', title="Mostra a soma total dos custos estimados para todas as ligações registradas.", children=[
                 html.H3('Custo Total Estimado'),
                 html.H2(id='custo-total-estimado', children=f'R$ {df["Preço"].sum():.2f}')
             ])
@@ -291,7 +297,8 @@ app.layout = html.Div(className='container', children=[
     ]),
     
     html.Div(className='graphs-row', children=[
-        html.Div(className='graph-box', children=[
+        # Gráfico Top 10 Números
+        html.Div(className='graph-box', title="Gráfico de barras mostrando os 10 números de destino mais chamados.", children=[
             dcc.Graph(id='grafico-top-numeros', figure=px.bar(top_numeros_df, x='Destino', y='Contagem', title='Top 10 Números Mais Chamados')),
         ]),
         html.Div(className='graph-box', children=[
@@ -307,10 +314,12 @@ app.layout = html.Div(className='container', children=[
     ]),
     
     html.Div(className='graphs-row', children=[
-        html.Div(className='graph-box', children=[
+        # Gráfico Proporção de Ligações
+        html.Div(className='graph-box', title="Gráfico de pizza mostrando a proporção de ligações por região.", children=[
             dcc.Graph(id='grafico-tipo-chamada', figure=px.pie(distribuicao_df, values='Contagem', names='Região', title='Proporção de Ligações', hole=.3)),
         ]),
-        html.Div(className='graph-box', children=[
+        # Gráfico Ligações Longas
+        html.Div(className='graph-box', title="Gráfico de barras mostrando a contagem e custo das ligações com mais de 5 minutos.", children=[
             dcc.Graph(id='grafico-longas', figure=fig_longas),
         ]),
     ]),
@@ -376,10 +385,7 @@ def update_table(click_top_numeros, click_longas, click_tipo):
         dados_filtrados = df[df['Destino'] == numero_selecionado]
     elif id_disparador == 'grafico-longas':
         faixa_selecionada = click_longas['points'][0]['x']
-        dados_filtrados = df[df['Faixa de Tempo'] == faixa_selecionada].copy()
-        dados_filtrados['Repetições'] = dados_filtrados.groupby('Destino')['Destino'].transform('count')
-        colunas_para_tabela.insert(4, 'Repetições')
-        dados_filtrados.sort_values(by='Repetições', ascending=False, inplace=True)
+        dados_filtrados = df[df['Faixa de Tempo'] == faixa_selecionada]
         
     elif id_disparador == 'grafico-tipo-chamada':
         tipo_selecionado = click_tipo['points'][0]['label']
@@ -390,6 +396,17 @@ def update_table(click_top_numeros, click_longas, click_tipo):
     
     if dados_filtrados.empty:
         return html.P("Nenhum dado encontrado para a seleção.", style={'textAlign': 'center'})
+
+    # Adiciona a coluna 'Repetições' e ordena em todos os casos de filtro
+    dados_filtrados['Repetições'] = dados_filtrados.groupby('Destino')['Destino'].transform('count')
+    colunas_para_tabela.insert(4, 'Repetições')
+    
+    # Ordena o DataFrame, primeiro por repetições (maior para menor)
+    # e depois por 'Destino' (menor para maior) para os casos de empate.
+    dados_filtrados['Destino_int'] = pd.to_numeric(dados_filtrados['Destino'], errors='coerce')
+    dados_filtrados.sort_values(by=['Repetições', 'Destino_int'], ascending=[False, True], inplace=True)
+    dados_filtrados.drop(columns=['Destino_int'], inplace=True)
+
 
     dados_para_exibir = dados_filtrados[colunas_para_tabela].to_dict('records')
 
