@@ -1,4 +1,4 @@
-Data,Serviço/Origem,Região,Tech Prefix,Destino,Duração,Preço,Somente Data,Somente Hora,Duração (segundos),DDD,Faixa de Tempo
+data,serviço/origem,região,tech prefix,destino,duração,preço,somente data,somente hora,duração (segundos),ddd,faixa de tempo
 2025-08-31 02:03:43,4006@35.198.1.91,MOVEL 48,,5548991942838,00:06:24,0.896,2025-08-31,02:03:43,384,48,6-7 min
 2025-08-30 21:25:41,4006@35.198.1.91,MOVEL 48,,5548991942838,00:02:48,0.392,2025-08-30,21:25:41,168,48,
 2025-08-30 21:05:09,4006@35.198.1.91,MOVEL 48,,5548991942838,00:02:24,0.336,2025-08-30,21:05:09,144,48,

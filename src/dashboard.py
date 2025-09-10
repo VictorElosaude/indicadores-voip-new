@@ -219,12 +219,31 @@ def carregar_dados_iniciais():
 # --- CARREGA OS DADOS E INICIA O APP ---
 df = carregar_dados_iniciais()
 
+# Verifica se o DataFrame está vazio antes de tentar criar os gráficos
 if df.empty:
     print("Erro grave: Não foi possível carregar os dados. O dashboard não será iniciado.")
+    app = dash.Dash(__name__, assets_folder='assets')
+    app.layout = html.Div(style={'textAlign': 'center', 'marginTop': '50px'}, children=[
+        html.H1("Não foi possível carregar os dados.", style={'color': 'red'}),
+        html.P("Verifique as variáveis de ambiente e a conexão com o site de origem. A automação pode ter falhado.")
+    ])
+    if __name__ == '__main__':
+        app.run(host='0.0.0.0', port=8050, debug=False)
     exit()
 
-# --- CORREÇÃO: Normaliza os nomes das colunas novamente para garantir a consistência ---
-df.columns = df.columns.str.strip().str.lower()
+# --- CORREÇÃO FINAL E ASSERTIVA ---
+# Verifica se a coluna 'Destino' existe e a renomeia para 'destino' para garantir que ela exista
+# Isso é uma segurança extra para o caso do arquivo CSV salvo localmente ter 'Destino' com maiúscula
+if 'Destino' in df.columns:
+    df.rename(columns={'Destino': 'destino'}, inplace=True)
+# Faz o mesmo para as outras colunas usadas
+if 'Região' in df.columns:
+    df.rename(columns={'Região': 'região'}, inplace=True)
+if 'Duração' in df.columns:
+    df.rename(columns={'Duração': 'duração'}, inplace=True)
+if 'Preço' in df.columns:
+    df.rename(columns={'Preço': 'preço'}, inplace=True)
+
 
 # --- CALCULA O MÊS DE REFERÊNCIA PARA O DASHBOARD ---
 hoje = datetime.date.today()
@@ -242,7 +261,7 @@ top_5_regioes = contagem_regiao.head(5)
 outros_total = contagem_regiao.iloc[5:].sum()
 distribuicao_df = top_5_regioes.to_frame(name='Contagem')
 if outros_total > 0:
-    distribuicao_df.loc['outros'] = outros_total
+    distribuicao_df.loc['Outros'] = outros_total
 distribuicao_df = distribuicao_df.reset_index()
 distribuicao_df.columns = ['Região', 'Contagem']
 top_ddds_df = df['ddd'].value_counts().head(10).reset_index(name='Contagem')
@@ -251,7 +270,7 @@ ligacoes_longas_df = df.dropna(subset=['faixa de tempo']).groupby('faixa de temp
     Custo_Acumulado=('preço', 'sum')
 ).reset_index()
 faixas_ordenadas = ['5-6 min', '6-7 min', '7-8 min', '8-9 min', '9-10 min', '10+ min']
-ligacoes_longas_df['faixa de tempo'] = pd.Categorical(ligacoes_longas_df['faixa de tempo'], categories=faixas_ordenadas, ordered=True)
+ligacoes_longas_df['faixa de tempo'] = pd.Categorical(ligacoes_longas['faixa de tempo'], categories=faixas_ordenadas, ordered=True)
 ligacoes_longas_df = ligacoes_longas_df.sort_values('faixa de tempo')
 fig_longas = px.bar(ligacoes_longas_df, x='faixa de tempo', y='Contagem', 
                      title='Ligações com Mais de 5 Minutos', 
