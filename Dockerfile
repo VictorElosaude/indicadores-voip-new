@@ -4,7 +4,7 @@ FROM python:3.9-slim
 # Evita prompts interativos durante instalação
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala dependências do sistema necessárias para o Chrome e o ChromeDriver
+# Instala dependências do sistema necessárias para o Chrome e o ChromeDriver, incluindo o jq
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libgtk-3-0 \
     libgbm-dev \
     curl \
+    jq \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,9 +28,9 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearm
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Instala o ChromeDriver compatível com o Chrome instalado
-RUN LATEST_CHROMEDRIVER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | grep -o '"chromedriver": [^}]*' | grep -o 'Linux_x64.*tgz' | head -1 | cut -d'"' -f4) \
-    && wget -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing/${LATEST_CHROMEDRIVER}" \
+# Instala o ChromeDriver compatível usando jq para encontrar o URL correto
+RUN LATEST_CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | jq -r '.versions[] | select(.version | contains(".")) | .downloads.chromedriver[] | select(.platform == "linux64") | .url') \
+    && wget -O /tmp/chromedriver.zip "${LATEST_CHROMEDRIVER_URL}" \
     && tar -xvzf /tmp/chromedriver.zip -C /usr/local/bin/ \
     && chmod +x /usr/local/bin/chromedriver \
     && rm /tmp/chromedriver.zip
