@@ -24,7 +24,7 @@ PASSWORD = os.environ.get("SERVICE_PASSWORD")
 
 # Define as opções para o Chrome no ambiente Docker
 chrome_options = Options()
-chrome_options.add_argument("--headless")  # <-- DESCOMENTADO PARA O AMBIENTE DE SERVIDOR
+chrome_options.add_argument("--headless") # <-- DESCOMENTADO PARA O AMBIENTE DE SERVIDOR
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 chrome_options.add_argument("--disable-gpu")
@@ -39,16 +39,19 @@ def preparar_dados_para_dashboard(df_raw):
     necessárias para os gráficos e métricas existam.
     """
     df_temp = df_raw.copy()
-
-    # Tratamento de dados (sua lógica)
-    if 'Data' in df_temp.columns:
-        df_temp['Data'] = pd.to_datetime(df_temp['Data'], errors='coerce')
-        df_temp['Somente Data'] = df_temp['Data'].dt.date
-        df_temp['Somente Hora'] = df_temp['Data'].dt.time
     
-    if 'Preço' in df_temp.columns:
-        df_temp['Preço'] = df_temp['Preço'].astype(str).str.replace('"', '').str.replace(',', '.')
-        df_temp['Preço'] = pd.to_numeric(df_temp['Preço'], errors='coerce')
+    # --- CORREÇÃO: NORMALIZAÇÃO DOS NOMES DAS COLUNAS ---
+    df_temp.columns = df_temp.columns.str.strip().str.lower()
+    
+    # Tratamento de dados (sua lógica)
+    if 'data' in df_temp.columns:
+        df_temp['data'] = pd.to_datetime(df_temp['data'], errors='coerce')
+        df_temp['somente data'] = df_temp['data'].dt.date
+        df_temp['somente hora'] = df_temp['data'].dt.time
+    
+    if 'preço' in df_temp.columns:
+        df_temp['preço'] = df_temp['preço'].astype(str).str.replace('"', '').str.replace(',', '.')
+        df_temp['preço'] = pd.to_numeric(df_temp['preço'], errors='coerce')
     
     def converter_duracao_para_segundos(duracao_str):
         if isinstance(duracao_str, str) and duracao_str.count(':') == 2:
@@ -59,23 +62,23 @@ def preparar_dados_para_dashboard(df_raw):
                 return 0
         return 0
     
-    if 'Duração' in df_temp.columns:
-        df_temp['Duração (segundos)'] = df_temp['Duração'].apply(converter_duracao_para_segundos)
+    if 'duração' in df_temp.columns:
+        df_temp['duração (segundos)'] = df_temp['duração'].apply(converter_duracao_para_segundos)
     else:
-        df_temp['Duração (segundos)'] = 0
+        df_temp['duração (segundos)'] = 0
     
-    if 'Destino' in df_temp.columns:
-        df_temp['Destino'] = df_temp['Destino'].astype(str)
-        df_temp['DDD'] = df_temp['Destino'].str.extract(r'^55(\d{2})')
+    if 'destino' in df_temp.columns:
+        df_temp['destino'] = df_temp['destino'].astype(str)
+        df_temp['ddd'] = df_temp['destino'].str.extract(r'^55(\d{2})')
     
     # CRIAÇÃO DA COLUNA 'Faixa de Tempo' AQUI
-    df_temp['Faixa de Tempo'] = pd.NA
-    ligacoes_longas = df_temp[df_temp['Duração (segundos)'] > 300].copy()
+    df_temp['faixa de tempo'] = pd.NA
+    ligacoes_longas = df_temp[df_temp['duração (segundos)'] > 300].copy()
     if not ligacoes_longas.empty:
         bins = [300, 360, 420, 480, 540, 600, float('inf')]
         labels = ['5-6 min', '6-7 min', '7-8 min', '8-9 min', '9-10 min', '10+ min']
-        df_temp.loc[ligacoes_longas.index, 'Faixa de Tempo'] = pd.cut(
-            ligacoes_longas['Duração (segundos)'],
+        df_temp.loc[ligacoes_longas.index, 'faixa de tempo'] = pd.cut(
+            ligacoes_longas['duração (segundos)'],
             bins=bins,
             labels=labels,
             right=False,
@@ -229,28 +232,30 @@ mes_de_referencia_str = ultimo_dia_mes_anterior.strftime("%m de %Y")
 
 app = dash.Dash(__name__, assets_folder='assets')
 
-top_numeros_df = df['Destino'].value_counts().head(10).reset_index(name='Contagem')
-contagem_regiao = df['Região'].value_counts()
+# --- CORREÇÃO: Usar a coluna 'destino' em minúsculas ---
+# Esta é a linha 232 no seu código original
+top_numeros_df = df['destino'].value_counts().head(10).reset_index(name='Contagem')
+contagem_regiao = df['região'].value_counts()
 top_5_regioes_lista = contagem_regiao.head(5).index.tolist()
 top_5_regioes = contagem_regiao.head(5)
 outros_total = contagem_regiao.iloc[5:].sum()
 distribuicao_df = top_5_regioes.to_frame(name='Contagem')
 if outros_total > 0:
-    distribuicao_df.loc['Outros'] = outros_total
+    distribuicao_df.loc['outros'] = outros_total
 distribuicao_df = distribuicao_df.reset_index()
 distribuicao_df.columns = ['Região', 'Contagem']
-top_ddds_df = df['DDD'].value_counts().head(10).reset_index(name='Contagem')
-ligacoes_longas_df = df.dropna(subset=['Faixa de Tempo']).groupby('Faixa de Tempo').agg(
-    Contagem=('Faixa de Tempo', 'count'),
-    Custo_Acumulado=('Preço', 'sum')
+top_ddds_df = df['ddd'].value_counts().head(10).reset_index(name='Contagem')
+ligacoes_longas_df = df.dropna(subset=['faixa de tempo']).groupby('faixa de tempo').agg(
+    Contagem=('faixa de tempo', 'count'),
+    Custo_Acumulado=('preço', 'sum')
 ).reset_index()
 faixas_ordenadas = ['5-6 min', '6-7 min', '7-8 min', '8-9 min', '9-10 min', '10+ min']
-ligacoes_longas_df['Faixa de Tempo'] = pd.Categorical(ligacoes_longas_df['Faixa de Tempo'], categories=faixas_ordenadas, ordered=True)
-ligacoes_longas_df = ligacoes_longas_df.sort_values('Faixa de Tempo')
-fig_longas = px.bar(ligacoes_longas_df, x='Faixa de Tempo', y='Contagem', 
-                    title='Ligações com Mais de 5 Minutos', 
-                    text='Contagem',
-                    hover_data={'Custo_Acumulado': True})
+ligacoes_longas_df['faixa de tempo'] = pd.Categorical(ligacoes_longas_df['faixa de tempo'], categories=faixas_ordenadas, ordered=True)
+ligacoes_longas_df = ligacoes_longas_df.sort_values('faixa de tempo')
+fig_longas = px.bar(ligacoes_longas_df, x='faixa de tempo', y='Contagem', 
+                     title='Ligações com Mais de 5 Minutos', 
+                     text='Contagem',
+                     hover_data={'Custo_Acumulado': True})
 fig_longas.update_traces(hovertemplate='<b>Faixa de Tempo:</b> %{x}<br><b>Ligações:</b> %{y}<br><b>Custo Acumulado:</b> R$ %{customdata[0]:.2f}<extra></extra>')
 
 app.layout = html.Div(className='container', children=[
@@ -281,17 +286,17 @@ app.layout = html.Div(className='container', children=[
             # Métrica: Chamadas Ativas
             html.Div(className='metric-box', title="Mostra o número de ligações com duração maior que zero segundos.", children=[
                 html.H3('Chamadas Ativas'),
-                html.H2(id='chamadas-ativas', children=f'{len(df[df["Duração (segundos)"] > 0])}')
+                html.H2(id='chamadas-ativas', children=f'{len(df[df["duração (segundos)"] > 0])}')
             ]),
             # Métrica: Tempo Total de Chamadas
             html.Div(className='metric-box', title="Mostra a soma total da duração de todas as ligações, convertida para horas.", children=[
                 html.H3('Tempo Total de Chamadas'),
-                html.H2(id='tempo-total-chamadas', children=f'{df["Duração (segundos)"].sum() / 3600:.2f} horas')
+                html.H2(id='tempo-total-chamadas', children=f'{df["duração (segundos)"].sum() / 3600:.2f} horas')
             ]),
             # Métrica: Custo Total Estimado
             html.Div(className='metric-box', title="Mostra a soma total dos custos estimados para todas as ligações registradas.", children=[
                 html.H3('Custo Total Estimado'),
-                html.H2(id='custo-total-estimado', children=f'R$ {df["Preço"].sum():.2f}')
+                html.H2(id='custo-total-estimado', children=f'R$ {df["preço"].sum():.2f}')
             ])
         ])
     ]),
@@ -299,7 +304,7 @@ app.layout = html.Div(className='container', children=[
     html.Div(className='graphs-row', children=[
         # Gráfico Top 10 Números
         html.Div(className='graph-box', title="Gráfico de barras mostrando os 10 números de destino mais chamados.", children=[
-            dcc.Graph(id='grafico-top-numeros', figure=px.bar(top_numeros_df, x='Destino', y='Contagem', title='Top 10 Números Mais Chamados')),
+            dcc.Graph(id='grafico-top-numeros', figure=px.bar(top_numeros_df, x='destino', y='Contagem', title='Top 10 Números Mais Chamados')),
         ]),
         html.Div(className='graph-box', children=[
             html.H2('Top 10 DDDs Mais Chamados', className='section-title', style={'fontSize': '1.5em'}),
@@ -356,9 +361,9 @@ def update_metrics_on_interval(n):
             raise PreventUpdate
 
         total_ligacoes = len(df_atualizado)
-        chamadas_ativas = len(df_atualizado[df_atualizado["Duração (segundos)"] > 0])
-        tempo_total_horas = df_atualizado["Duração (segundos)"].sum() / 3600
-        custo_total = df_atualizado["Preço"].sum()
+        chamadas_ativas = len(df_atualizado[df_atualizado["duração (segundos)"] > 0])
+        tempo_total_horas = df_atualizado["duração (segundos)"].sum() / 3600
+        custo_total = df_atualizado["preço"].sum()
         
         return f'{total_ligacoes}', f'{chamadas_ativas}', f'{tempo_total_horas:.2f} horas', f'R$ {custo_total:.2f}'
     else:
@@ -382,30 +387,30 @@ def update_table(click_top_numeros, click_longas, click_tipo):
 
     if id_disparador == 'grafico-top-numeros':
         numero_selecionado = click_top_numeros['points'][0]['x']
-        dados_filtrados = df[df['Destino'] == numero_selecionado]
+        dados_filtrados = df[df['destino'] == numero_selecionado]
     elif id_disparador == 'grafico-longas':
         faixa_selecionada = click_longas['points'][0]['x']
-        dados_filtrados = df[df['Faixa de Tempo'] == faixa_selecionada]
+        dados_filtrados = df[df['faixa de tempo'] == faixa_selecionada]
         
     elif id_disparador == 'grafico-tipo-chamada':
         tipo_selecionado = click_tipo['points'][0]['label']
         if tipo_selecionado == 'Outros':
-            dados_filtrados = df[~df['Região'].isin(top_5_regioes_lista)]
+            dados_filtrados = df[~df['região'].isin(top_5_regioes_lista)]
         else:
-            dados_filtrados = df[df['Região'] == tipo_selecionado]
+            dados_filtrados = df[df['região'] == tipo_selecionado]
     
     if dados_filtrados.empty:
         return html.P("Nenhum dado encontrado para a seleção.", style={'textAlign': 'center'})
 
     # Adiciona a coluna 'Repetições' e ordena em todos os casos de filtro
-    dados_filtrados['Repetições'] = dados_filtrados.groupby('Destino')['Destino'].transform('count')
+    dados_filtrados['Repetições'] = dados_filtrados.groupby('destino')['destino'].transform('count')
     colunas_para_tabela.insert(4, 'Repetições')
     
     # Ordena o DataFrame, primeiro por repetições (maior para menor)
     # e depois por 'Destino' (menor para maior) para os casos de empate.
-    dados_filtrados['Destino_int'] = pd.to_numeric(dados_filtrados['Destino'], errors='coerce')
-    dados_filtrados.sort_values(by=['Repetições', 'Destino_int'], ascending=[False, True], inplace=True)
-    dados_filtrados.drop(columns=['Destino_int'], inplace=True)
+    dados_filtrados['destino_int'] = pd.to_numeric(dados_filtrados['destino'], errors='coerce')
+    dados_filtrados.sort_values(by=['Repetições', 'destino_int'], ascending=[False, True], inplace=True)
+    dados_filtrados.drop(columns=['destino_int'], inplace=True)
 
 
     dados_para_exibir = dados_filtrados[colunas_para_tabela].to_dict('records')
