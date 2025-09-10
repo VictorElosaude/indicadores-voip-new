@@ -22,5 +22,8 @@ COPY . .
 # Cria o diretório de logs
 RUN mkdir -p logs
 
+# Adicione esta linha para expor a porta 8050
+EXPOSE 8050
+
 # Comando para rodar o script principal
 CMD ["python", "src/dashboard.py"]
