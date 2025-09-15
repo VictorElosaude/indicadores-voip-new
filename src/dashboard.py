@@ -22,6 +22,9 @@ URL_LOGIN = "https://uservoz.uservoz.com.br/painel/"
 USERNAME = os.environ.get("SERVICE_USERNAME")
 PASSWORD = os.environ.get("SERVICE_PASSWORD")
 
+# Sua paleta de cores de 6 tons baseada em #20A490
+sua_paleta = ['#20A490', '#32BCA2', '#148C8C', '#0A6F6F', '#214D73', '#1A3F5C']
+
 # Define as opções para o Chrome no ambiente Docker
 chrome_options = Options()
 chrome_options.add_argument("--headless")
@@ -278,10 +281,16 @@ ligacoes_longas_df = df.dropna(subset=['faixa de tempo']).groupby('faixa de temp
 faixas_ordenadas = ['5-6 min', '6-7 min', '7-8 min', '8-9 min', '9-10 min', '10+ min']
 ligacoes_longas_df['faixa de tempo'] = pd.Categorical(ligacoes_longas_df['faixa de tempo'], categories=faixas_ordenadas, ordered=True)
 ligacoes_longas_df = ligacoes_longas_df.sort_values('faixa de tempo')
+
+# Aplicando a nova paleta de cores
+fig_top_numeros = px.bar(top_numeros_df, x='destino', y='Contagem', title='Top 10 Números Mais Chamados', color_discrete_sequence=sua_paleta)
+fig_tipo_chamada = px.pie(distribuicao_df, values='Contagem', names='Região', title='Proporção de Ligações', hole=.3, color_discrete_sequence=sua_paleta)
 fig_longas = px.bar(ligacoes_longas_df, x='faixa de tempo', y='Contagem', 
                      title='Ligações com Mais de 5 Minutos', 
                      text='Contagem',
-                     hover_data={'Custo_Acumulado': True})
+                     hover_data={'Custo_Acumulado': True},
+                     color_discrete_sequence=sua_paleta)
+
 fig_longas.update_traces(hovertemplate='<b>Faixa de Tempo:</b> %{x}<br><b>Ligações:</b> %{y}<br><b>Custo Acumulado:</b> R$ %{customdata[0]:.2f}<extra></extra>')
 
 app.layout = html.Div(className='container', children=[
@@ -330,7 +339,7 @@ app.layout = html.Div(className='container', children=[
     html.Div(className='graphs-row', children=[
         # Gráfico Top 10 Números
         html.Div(className='graph-box', title="Gráfico de barras mostrando os 10 números de destino mais chamados.", children=[
-            dcc.Graph(id='grafico-top-numeros', figure=px.bar(top_numeros_df, x='destino', y='Contagem', title='Top 10 Números Mais Chamados')),
+            dcc.Graph(id='grafico-top-numeros', figure=fig_top_numeros),
         ]),
         html.Div(className='graph-box', children=[
             html.H2('Top 10 DDDs Mais Chamados', className='section-title', style={'fontSize': '1.5em'}),
@@ -347,7 +356,7 @@ app.layout = html.Div(className='container', children=[
     html.Div(className='graphs-row', children=[
         # Gráfico Proporção de Ligações
         html.Div(className='graph-box', title="Gráfico de pizza mostrando a proporção de ligações por região.", children=[
-            dcc.Graph(id='grafico-tipo-chamada', figure=px.pie(distribuicao_df, values='Contagem', names='Região', title='Proporção de Ligações', hole=.3)),
+            dcc.Graph(id='grafico-tipo-chamada', figure=fig_tipo_chamada),
         ]),
         # Gráfico Ligações Longas
         html.Div(className='graph-box', title="Gráfico de barras mostrando a contagem e custo das ligações com mais de 5 minutos.", children=[
