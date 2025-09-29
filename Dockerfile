@@ -24,5 +24,4 @@ COPY . .
 # Expor porta do Dash
 EXPOSE 8050
 
-# Rodar a aplicação
-CMD ["python", "dashboard.py"]
+CMD ["python", "src/dashboard.py"]
