@@ -118,7 +118,7 @@ def executar_pipeline_completa() -> pd.DataFrame:
 
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="login"]'))).send_keys(USERNAME)
         driver.find_element(By.XPATH, '//*[@id="senha"]').send_keys(PASSWORD)
-        driver.find_element(By.XPATH, '//*[@id="bt-login]/input').click()
+        driver.find_element(By.XPATH, '//*[@id="bt-login"]/input')
         time.sleep(5)
 
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="1"]'))).click()
