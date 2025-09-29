@@ -1,29 +1,28 @@
-# Usa uma imagem oficial do Python como base para um tamanho de imagem menor
-FROM python:3.11-slim
+FROM python:3.9-slim
 
-# Define o diretório de trabalho no contêiner
-WORKDIR /app
-
-# Instala o navegador Chromium e outras dependências
+# Instalar dependências do sistema (mantenho as suas e acrescento o Chrome)
 RUN apt-get update && apt-get install -y \
-    chromium \
-    --no-install-recommends \
+    wget curl unzip gnupg \
+    chromium chromium-driver \
+    libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia o arquivo requirements.txt primeiro para otimizar a cache de construção
-COPY requirements.txt .
+# Variáveis de ambiente para o Selenium encontrar o Chromium
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER_BIN=/usr/bin/chromedriver
 
-# Instala as dependências do projeto
+# Diretório de trabalho
+WORKDIR /app
+
+# Copiar requirements e instalar dependências Python
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o restante do código do projeto para o contêiner
+# Copiar o resto do código
 COPY . .
 
-# Cria o diretório de logs
-RUN mkdir -p logs
-
-# Adicione esta linha para expor a porta 8050
+# Expor porta do Dash
 EXPOSE 8050
 
-# Comando para rodar o script principal
-CMD ["python", "src/dashboard.py"]
+# Rodar a aplicação
+CMD ["python", "dashboard.py"]
