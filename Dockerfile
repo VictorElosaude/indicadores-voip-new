@@ -1,10 +1,10 @@
 FROM python:3.9-slim
 
-# Instalar dependências do sistema (mantenho as suas e acrescento o Chrome)
+# Instalar dependências do sistema (com Chromium)
 RUN apt-get update && apt-get install -y \
     wget curl unzip gnupg \
     chromium chromium-driver \
-    libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 \
+    libglib2.0-0 libnss3 libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Variáveis de ambiente para o Selenium encontrar o Chromium
