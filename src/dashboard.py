@@ -210,7 +210,7 @@ if df.empty:
     ])
     if __name__ == '__main__':
         app.run(host='0.0.0.0', port=8050, debug=False)
-    raise SystemExit
+    #raise SystemExit
 
 # Mês de referência (sempre mês anterior)
 hoje = datetime.date.today()
